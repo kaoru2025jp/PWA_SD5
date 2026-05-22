@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PWA 計算アプリ</title>
+
+<style>
+
+body{
+    font-family:sans-serif;
+    max-width:420px;
+    margin:auto;
+    padding:16px;
+    background:#f5f5f5;
+    color:#333;
+}
+
+h2{
+    text-align:center;
+}
+
+.description{
+    background:white;
+    border:1px solid #ccc;
+    border-radius:8px;
+    padding:12px;
+    margin-bottom:20px;
+    line-height:1.7;
+    font-size:14px;
+}
+
+.input-box{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+input{
+    padding:12px;
+    font-size:16px;
+    border:1px solid #ccc;
+    border-radius:6px;
+}
+
+.button-group{
+    display:flex;
+    gap:10px;
+    margin-top:12px;
+}
+
+button{
+    flex:1;
+    padding:14px;
+    font-size:16px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.calc-btn{
+    background:#333;
+    color:white;
+}
+
+.reset-btn{
+    background:#999;
+    color:white;
+}
+
+button:disabled{
+    background:#ccc;
+}
+
+.loading{
+    margin-top:15px;
+    text-align:center;
+    color:#d35400;
+    font-weight:bold;
+    display:none;
+}
+
+.result{
+    margin-top:20px;
+    padding:12px;
+    background:white;
+    border:1px solid #ccc;
+    border-radius:8px;
+}
+
+.result h3{
+    margin-top:0;
+    text-align:center;
+}
+
+.history{
+    margin-top:20px;
+    background:white;
+    border:1px solid #ccc;
+    border-radius:8px;
+    padding:10px;
+}
+
+.history h3{
+    margin-top:0;
+    text-align:center;
+}
+
+.history-description{
+    font-size:13px;
+    line-height:1.6;
+    margin-bottom:15px;
+    color:#555;
+}
+
+.history-item{
+    border-bottom:1px solid #ddd;
+    padding:10px 0;
+    font-size:14px;
+}
+
+.history-item:last-child{
+    border-bottom:none;
+}
+
+.label{
+    font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>計算アプリ</h2>
+
+<!-- 説明 -->
+<div class="description">
+
+政府証券と民間の銘柄が交換された結果の
+差額分が計算されます。<br><br>
+
+差額が大きすぎた場合、
+オプション価格が不適切である可能性を
+疑う必要があります。
+
+</div>
+
+<!-- 入力欄 -->
+<div class="input-box">
+
+    <input id="B" type="number" placeholder="B">
+
+    <input id="S" type="number" placeholder="S">
+
+    <input id="T1" type="number" placeholder="T1">
+
+    <input id="T2" type="number" placeholder="T2">
+
+</div>
+
+<!-- ボタン -->
+<div class="button-group">
+
+    <button
+        id="calcBtn"
+        class="calc-btn"
+        onclick="calc()">
+
+        計算
+
+    </button>
+
+    <button
+        class="reset-btn"
+        onclick="resetForm()">
+
+        リセット
+
+    </button>
+
+</div>
+
+<!-- ローディング -->
+<div id="loading" class="loading">
+
+    少々お待ちください...
+
+</div>
+
+<!-- 結果 -->
+<div class="result">
+
+    <h3>計算結果</h3>
+
+    <div>O1: <span id="O1">-</span></div>
+
+    <div>O2: <span id="O2">-</span></div>
+
+    <hr>
+
+    <div>
+
+        <strong>
+
+            result(S - B + O1 + O2):
+
+        </strong>
+
+        <span id="result">-</span>
+
+    </div>
+
+</div>
+
+<!-- 履歴 -->
+<div class="history">
+
+    <h3>計算履歴</h3>
+
+    <div class="history-description">
+
+        計算した結果は新しい順に表示されます。
+
+    </div>
+
+    <div id="historyList">
+
+        履歴なし
+
+    </div>
+
+</div>
+
+<script>
+
+const GAS_URL =
+"https://script.google.com/macros/s/AKfycby3p9KLSlESfF-2BmPv7B4n995E2Gu4pNjhpitk-Y3Zfen6jvIAdbe63NTmajSxBbgz/exec";
+
+let historyData = [];
+
+async function calc(){
+
+    const B =
+        Number(document.getElementById("B").value);
+
+    const S =
+        Number(document.getElementById("S").value);
+
+    const T1 =
+        Number(document.getElementById("T1").value);
+
+    const T2 =
+        Number(document.getElementById("T2").value);
+
+    // 入力チェック
+    if(
+        isNaN(B) ||
+        isNaN(S) ||
+        isNaN(T1) ||
+        isNaN(T2)
+    ){
+        alert("数値を入力してください");
+        return;
+    }
+
+    // ローディング表示
+    document.getElementById("loading").style.display =
+        "block";
+
+    // ボタン無効
+    document.getElementById("calcBtn").disabled =
+        true;
+
+    try{
+
+        const res = await fetch(GAS_URL,{
+            method:"POST",
+            body:JSON.stringify({
+                B,
+                S,
+                T1,
+                T2
+            })
+        });
+
+        const data = await res.json();
+
+        const O1 = Number(data.O1);
+
+        const O2 = Number(data.O2);
+
+        // 最終計算
+        const result =
+            S - B + O1 + O2;
+
+        // 結果表示
+        document.getElementById("O1").textContent =
+            O1;
+
+        document.getElementById("O2").textContent =
+            O2;
+
+        document.getElementById("result").textContent =
+            result;
+
+        // 履歴追加
+        addHistory({
+            B,
+            S,
+            T1,
+            T2,
+            O1,
+            O2,
+            result
+        });
+
+    }catch(error){
+
+        alert("エラーが発生しました");
+
+        console.error(error);
+
+    }finally{
+
+        // ローディング非表示
+        document.getElementById("loading").style.display =
+            "none";
+
+        // ボタン有効
+        document.getElementById("calcBtn").disabled =
+            false;
+    }
+}
+
+function resetForm(){
+
+    // 入力欄リセット
+    document.getElementById("B").value = "";
+
+    document.getElementById("S").value = "";
+
+    document.getElementById("T1").value = "";
+
+    document.getElementById("T2").value = "";
+
+    // 結果リセット
+    document.getElementById("O1").textContent = "-";
+
+    document.getElementById("O2").textContent = "-";
+
+    document.getElementById("result").textContent = "-";
+
+}
+
+function addHistory(item){
+
+    historyData.unshift(item);
+
+    const historyList =
+        document.getElementById("historyList");
+
+    historyList.innerHTML = "";
+
+    historyData.forEach((data,index)=>{
+
+        const div =
+            document.createElement("div");
+
+        div.className = "history-item";
+
+        div.innerHTML = `
+
+            <div>
+                <span class="label">
+                    No:
+                </span>
+                ${index + 1}
+            </div>
+
+            <div>
+                <span class="label">
+                    B:
+                </span>
+                ${data.B}
+            </div>
+
+            <div>
+                <span class="label">
+                    S:
+                </span>
+                ${data.S}
+            </div>
+
+            <div>
+                <span class="label">
+                    T1:
+                </span>
+                ${data.T1}
+            </div>
+
+            <div>
+                <span class="label">
+                    T2:
+                </span>
+                ${data.T2}
+            </div>
+
+            <div>
+                <span class="label">
+                    O1:
+                </span>
+                ${data.O1}
+            </div>
+
+            <div>
+                <span class="label">
+                    O2:
+                </span>
+                ${data.O2}
+            </div>
+
+            <div>
+                <span class="label">
+                    S-B+O1+O2:
+                </span>
+                ${data.result}
+            </div>
+
+        `;
+
+        historyList.appendChild(div);
+
+    });
+
+}
+
+</script>
+
+</body>
+</html>
